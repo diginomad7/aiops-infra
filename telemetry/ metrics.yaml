@@ -1,0 +1,14 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ai-module
+  labels:
+    release: promstack
+spec:
+  selector:
+    matchLabels:
+      app: ai-module
+  endpoints:
+    - port: grpc
+      interval: 30s
+      path: /metrics

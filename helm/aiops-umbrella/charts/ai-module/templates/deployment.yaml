@@ -1,0 +1,28 @@
+---
+# charts/ai-module/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-module
+  labels:
+    app: ai-module
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-module
+  template:
+    metadata:
+      labels:
+        app: ai-module
+    spec:
+      containers:
+        - name: ai-module
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10

@@ -1,0 +1,84 @@
+---
+# values.yaml
+kube-prometheus-stack:
+  grafana:
+    ingress:
+      enabled: true
+      ingressClassName: nginx
+      annotations:
+        nginx.ingress.kubernetes.io/auth-type: basic
+        nginx.ingress.kubernetes.io/auth-secret: basic-auth
+        nginx.ingress.kubernetes.io/auth-realm: "Authentication Required – Grafana"
+      hosts:
+        - grafana.local
+      path: /
+    sidecar:
+      dashboards:
+        enabled: true
+        label: grafana_dashboard
+        folderAnnotation: grafana_folder
+    dashboardsConfigMaps:
+      devops-notes-dashboard: devops-notes-dashboard
+  alertmanager:
+    ingress:
+      enabled: true
+      ingressClassName: nginx
+      annotations:
+        nginx.ingress.kubernetes.io/auth-type: basic
+        nginx.ingress.kubernetes.io/auth-secret: basic-auth
+        nginx.ingress.kubernetes.io/auth-realm: "Authentication Required – Alertmanager"
+      hosts:
+        - alert.local
+      path: /
+  prometheus:
+    ingress:
+      enabled: true
+      ingressClassName: nginx
+      annotations:
+        nginx.ingress.kubernetes.io/auth-type: basic
+        nginx.ingress.kubernetes.io/auth-secret: basic-auth
+        nginx.ingress.kubernetes.io/auth-realm: "Authentication Required – Prometheus"
+      hosts:
+        - prometheus.local
+      paths:
+        - /
+
+ai-module:
+  image:
+    repository: your-registry/aiops-analyzer
+    tag: latest
+  service:
+    port: 50051
+  ingress:
+    enabled: true
+    host: ai.local
+
+loki-stack:
+  loki:
+    enabled: true
+  promtail:
+    enabled: true
+
+opentelemetry-collector:
+  mode: deployment
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+          http:
+    processors:
+      batch:
+    exporters:
+      logging:
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [logging]
+
+ingress-nginx:
+  controller:
+    admissionWebhooks:
+      enabled: false

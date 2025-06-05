@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devops-notes-dashboard
+  labels:
+    grafana_dashboard: "1"
+    grafana_folder: "DevOps Notes"
+data:
+  devops-notes.json: |
+    {
+      "id": null,
+      "uid": "devops-notes",
+      "title": "DevOps Notes & Cheatsheet",
+      "tags": ["cheatsheet", "devops", "howto"],
+      "timezone": "browser",
+      "schemaVersion": 38,
+      "version": 1,
+      "refresh": false,
+      "panels": [
+        {
+          "type": "text",
+          "title": "Kubectl & K3s",
+          "gridPos": { "x": 0, "y": 0, "w": 12, "h": 7 },
+          "options": { "mode": "markdown", "content": "```shell\n# Context, ns, info\nk config get-contexts\nk config use-context $CTX\nk get ns\nk ns <ns>\n\n# Pods/services\nk get po -A\nk get svc -A\nk logs -f <pod>\nk exec -it <pod> -- sh\n\n# FZF magic\nkexec    # fzf+exec\nkns      # fzf+ns\nkgpc     # color pods\n```\n" }
+        },
+        {
+          "type": "text",
+          "title": "Helm",
+          "gridPos": { "x": 12, "y": 0, "w": 12, "h": 7 },
+          "options": { "mode": "markdown", "content": "```shell\nh repo ls\nh repo add ...\nh dep up\nh ls -A\nh i <rel> <chart>\nh u <rel> <chart>\nh d <rel>\n\n# fzf\nhselect  # helm status через fzf\n```\n" }
+        },
+        {
+          "type": "text",
+          "title": "Ansible",
+          "gridPos": { "x": 0, "y": 7, "w": 12, "h": 7 },
+          "options": { "mode": "markdown", "content": "```shell\na -i hosts all -m ping\nap playbook.yml\nav encrypt vars.yml\nai --list-hosts all\n\n# fzf\naplay   # выбрать playbook и запустить\n```\n" }
+        },
+        {
+          "type": "text",
+          "title": "Terraform",
+          "gridPos": { "x": 12, "y": 7, "w": 12, "h": 7 },
+          "options": { "mode": "markdown", "content": "```shell\ntf init\n tf plan\n tf apply\n tf destroy\n tf show\n\n# fzf\ntfplan  # выбрать tf-папку и выполнить plan\n```\n" }
+        },
+        {
+          "type": "text",
+          "title": "Aliases & Tricks",
+          "gridPos": { "x": 0, "y": 14, "w": 24, "h": 7 },
+          "options": { "mode": "markdown", "content": "```shell\n# Быстрый kubeconfig\nkfzkube   # fzf + выбор kubeconfig\n# Авто.env upload\nkenvcp    # fzf + upload .env\n\n# Цветные статы подов\nalias kgpc='kpods_color'\n# Поддержка ENV для ns:\nexport KUBE_NS=my-namespace; kns $KUBE_NS\n```\n" }
+        }
+      ],
+      "folders": []
+    }

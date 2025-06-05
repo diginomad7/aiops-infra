@@ -1,0 +1,13 @@
+---
+# charts/ai-module/values.yaml
+image:
+  repository: your-registry/aiops-analyzer
+  tag: latest
+
+service:
+  port: 50051
+
+ingress:
+  enabled: true
+  host: ai.local
+

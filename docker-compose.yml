@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # ML-анализатор
+  analyzer:
+    build:
+      context: .
+      dockerfile: docker/analyzer/Dockerfile
+    environment:
+      - PROMETHEUS_URL=http://prometheus:9090
+      - LOG_LEVEL=debug
+    ports:
+      - "8080:8080"
+    depends_on:
+      - prometheus
+
+  # Оркестратор
+  orchestrator:
+    build:
+      context: .
+      dockerfile: docker/orchestrator/Dockerfile
+    environment:
+      - ANALYZER_URL=http://analyzer:8080
+      - LOG_LEVEL=debug
+    ports:
+      - "8081:8081"
+    depends_on:
+      - analyzer
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    volumes:
+      - ./configs/prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "9090:9090"
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:10.0.0
+    volumes:
+      - ./configs/grafana:/etc/grafana/provisioning
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+  # Loki
+  loki:
+    image: grafana/loki:2.8.0
+    volumes:
+      - ./configs/loki:/etc/loki
+      - loki_data:/loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/loki-config.yml
+
+  # Promtail
+  promtail:
+    image: grafana/promtail:2.8.0
+    volumes:
+      - ./configs/promtail:/etc/promtail
+      - /var/log:/var/log
+    command: -config.file=/etc/promtail/promtail-config.yml
+    depends_on:
+      - loki
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  loki_data: 

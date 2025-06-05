@@ -1,0 +1,79 @@
+---
+- hosts: masters
+  become: yes
+  vars:
+    tls_san: "192.168.56.11,192.168.56.12"
+    k3s_token: "{{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}"
+  tasks:
+    - name: Create k3s config directory
+      file:
+        path: /etc/rancher/k3s
+        state: directory
+        mode: '0755'
+
+    - name: Configure k3s
+      copy:
+        dest: /etc/rancher/k3s/config.yaml
+        content: |
+          token: {{ k3s_token }}
+          tls-san:
+            - {{ tls_san.split(',') | join('\n            - ') }}
+          disable:
+            - traefik
+          cluster-init: {{ inventory_hostname == groups['masters'][0] }}
+          node-ip: {{ ansible_host }}
+          flannel-backend: vxlan
+          write-kubeconfig-mode: '0640'
+
+    - name: Install K3s first master
+      shell: |
+        curl -sfL https://get.k3s.io | sh -s - server \
+          --cluster-init \
+          --node-ip={{ ansible_host }} \
+          --disable=traefik \
+          --tls-san={{ tls_san }}
+      when: inventory_hostname == groups['masters'][0]
+
+    - name: Get K3s token from first master
+      shell: cat /var/lib/rancher/k3s/server/node-token
+      register: k3s_token_result
+      when: inventory_hostname == groups['masters'][0]
+
+    - name: Set K3s token fact
+      set_fact:
+        k3s_node_token: "{{ hostvars[groups['masters'][0]]['k3s_token_result']['stdout'] }}"
+      when: inventory_hostname != groups['masters'][0]
+
+    - name: Install K3s additional masters
+      shell: |
+        curl -sfL https://get.k3s.io | sh -s - server \
+          --server https://{{ groups['masters'][0] }}:6443 \
+          --token {{ k3s_node_token }} \
+          --node-ip={{ ansible_host }} \
+          --disable=traefik \
+          --tls-san={{ tls_san }}
+      when: inventory_hostname != groups['masters'][0]
+
+    - name: Wait for k3s to be ready
+      wait_for:
+        path: /etc/rancher/k3s/k3s.yaml
+        state: present
+        delay: 10
+        timeout: 300
+
+- hosts: workers
+  become: yes
+  vars:
+    master_ip: "{{ groups['masters'][0] }}"
+  tasks:
+    - name: Install K3s Agent
+      shell: |
+        curl -sfL https://get.k3s.io | K3S_URL=https://{{ master_ip }}:6443 K3S_TOKEN={{ hostvars[groups['masters'][0]]['k3s_token_result']['stdout'] }} sh -
+
+    - name: Install NGINX Ingress Controller
+      shell: |
+        kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.1/deploy/static/provider/baremetal/deploy.yaml
+      when: inventory_hostname == groups['workers'][0]
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+

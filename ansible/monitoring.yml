@@ -1,0 +1,61 @@
+---
+- hosts: masters
+  become: yes
+  tasks:
+    - name: Add Helm repository for Prometheus
+      shell: |
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+        helm repo update
+      when: inventory_hostname == groups['masters'][0]
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+    - name: Create monitoring namespace
+      shell: kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+      when: inventory_hostname == groups['masters'][0]
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+    - name: Install Prometheus Stack
+      shell: |
+        helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
+          --namespace monitoring \
+          --set grafana.adminPassword=admin123 \
+          --set prometheus.prometheusSpec.retention=15d \
+          --set prometheus.prometheusSpec.resources.requests.cpu=200m \
+          --set prometheus.prometheusSpec.resources.requests.memory=1Gi \
+          --set prometheus.prometheusSpec.resources.limits.cpu=1000m \
+          --set prometheus.prometheusSpec.resources.limits.memory=2Gi
+      when: inventory_hostname == groups['masters'][0]
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+    - name: Create Ingress for Grafana
+      copy:
+        dest: /tmp/grafana-ingress.yaml
+        content: |
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: grafana
+            namespace: monitoring
+          spec:
+            ingressClassName: nginx
+            rules:
+            - host: grafana.local
+              http:
+                paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: prometheus-grafana
+                      port:
+                        number: 80
+      when: inventory_hostname == groups['masters'][0]
+
+    - name: Apply Grafana Ingress
+      shell: kubectl apply -f /tmp/grafana-ingress.yaml
+      when: inventory_hostname == groups['masters'][0]
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml 

@@ -1,0 +1,25 @@
+# Chart.yaml
+apiVersion: v2
+name: aiops-umbrella
+version: 0.1.0
+description: Umbrella chart for AIOps stack
+keywords:
+  - aiops
+  - observability
+  - monitoring
+  - grafana
+  - prometheus
+type: application
+dependencies:
+  - name: kube-prometheus-stack
+    version: 72.7.0
+    repository: https://prometheus-community.github.io/helm-charts
+  - name: ai-module
+    version: 0.1.0
+    repository: file://charts/ai-module
+  - name: loki-stack
+    version: 2.9.10
+    repository: https://grafana.github.io/helm-charts
+  - name: opentelemetry-collector
+    version: 0.68.0
+    repository: https://open-telemetry.github.io/opentelemetry-helm-charts

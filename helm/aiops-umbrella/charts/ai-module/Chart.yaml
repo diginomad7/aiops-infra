@@ -1,0 +1,6 @@
+apiVersion: v2
+name: ai-module
+version: 0.1.0
+description: AI gRPC microservice with Prometheus metrics
+type: application
+

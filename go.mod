@@ -4,12 +4,13 @@ go 1.21
 
 require (
 	github.com/prometheus/client_golang v1.17.0
-	github.com/sirupsen/logrus v1.9.3
-	github.com/stretchr/testify v1.8.4
-	go.uber.org/zap v1.26.0
-	golang.org/x/sync v0.5.0
-	google.golang.org/grpc v1.59.0
-	k8s.io/client-go v0.28.4
+	github.com/grafana/loki-client-go v0.0.0-20230116142646-e7494d0ef70c
+	go.opentelemetry.io/otel v1.19.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.19.0
+	go.opentelemetry.io/otel/sdk v1.19.0
+	k8s.io/client-go v0.28.3
+	github.com/spf13/viper v1.17.0
+	github.com/gin-gonic/gin v1.9.1
 )
 
 require (

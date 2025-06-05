@@ -30,50 +30,61 @@ services:
   # Prometheus
   prometheus:
     image: prom/prometheus:v2.45.0
+    ports:
+      - "9090:9090"
     volumes:
-      - ./configs/prometheus:/etc/prometheus
+      - ./prometheus:/etc/prometheus
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
-    ports:
-      - "9090:9090"
 
   # Grafana
   grafana:
     image: grafana/grafana:10.0.0
+    ports:
+      - "3000:3000"
     volumes:
-      - ./configs/grafana:/etc/grafana/provisioning
       - grafana_data:/var/lib/grafana
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false
-    ports:
-      - "3000:3000"
-    depends_on:
-      - prometheus
 
   # Loki
   loki:
     image: grafana/loki:2.8.0
-    volumes:
-      - ./configs/loki:/etc/loki
-      - loki_data:/loki
     ports:
       - "3100:3100"
-    command: -config.file=/etc/loki/loki-config.yml
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./loki:/etc/loki
 
   # Promtail
   promtail:
     image: grafana/promtail:2.8.0
     volumes:
-      - ./configs/promtail:/etc/promtail
+      - ./promtail:/etc/promtail
       - /var/log:/var/log
-    command: -config.file=/etc/promtail/promtail-config.yml
-    depends_on:
-      - loki
+    command: -config.file=/etc/promtail/config.yml
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.47
+    ports:
+      - "16686:16686"
+      - "14250:14250"
+
+  otel-collector:
+    image: otel/opentelemetry-collector:0.81.0
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector:/etc/otel-collector
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "8888:8888"   # Prometheus metrics
+      - "8889:8889"   # Health check
 
 volumes:
   prometheus_data:

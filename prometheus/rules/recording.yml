@@ -1,0 +1,24 @@
+groups:
+  - name: node_recording_rules
+    rules:
+      - record: node:cpu:usage_percentage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+
+      - record: node:memory:usage_percentage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100
+
+  - name: kubernetes_recording_rules
+    rules:
+      - record: kubernetes:pod:restart_rate
+        expr: rate(kube_pod_container_status_restarts_total[15m])
+
+      - record: kubernetes:pod:ready_percentage
+        expr: sum(kube_pod_status_ready{condition="true"}) / sum(kube_pod_status_ready) * 100
+
+  - name: aiops_recording_rules
+    rules:
+      - record: http:request:error_percentage
+        expr: sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m])) * 100
+
+      - record: http:request:latency_seconds
+        expr: rate(http_request_duration_seconds_sum[5m]) / rate(http_request_duration_seconds_count[5m]) 

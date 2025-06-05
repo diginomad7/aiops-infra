@@ -1,0 +1,124 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: monitoring
+data:
+  otel-collector-config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+      # Получаем метрики Kubernetes
+      k8s_cluster:
+        collection_interval: 10s
+        node_conditions_to_report: ["Ready", "MemoryPressure", "DiskPressure"]
+        allocatable_types_to_report: ["cpu", "memory", "pods"]
+
+      # Получаем метрики хостов
+      hostmetrics:
+        collection_interval: 30s
+        scrapers:
+          cpu:
+            metrics:
+              system.cpu.time:
+                enabled: true
+          memory:
+            metrics:
+              system.memory.usage:
+                enabled: true
+          disk:
+            metrics:
+              system.disk.io:
+                enabled: true
+          filesystem:
+            metrics:
+              system.filesystem.usage:
+                enabled: true
+          network:
+            metrics:
+              system.network.io:
+                enabled: true
+
+    processors:
+      batch:
+        timeout: 10s
+        send_batch_size: 1024
+
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 1000
+        spike_limit_mib: 200
+
+      resource:
+        attributes:
+          - key: deployment.environment
+            value: production
+            action: upsert
+          - key: monitoring.type
+            value: aiops
+            action: upsert
+
+      # Фильтрация и обогащение метрик
+      filter:
+        metrics:
+          include:
+            match_type: regexp
+            metric_names:
+              - .*error.*
+              - .*latency.*
+              - .*request.*
+              - .*prediction.*
+              - .*anomaly.*
+
+    exporters:
+      prometheus:
+        endpoint: 0.0.0.0:8889
+        namespace: aiops
+        const_labels:
+          source: otel
+
+      otlp:
+        endpoint: tempo:4317
+        tls:
+          insecure: true
+
+      loki:
+        endpoint: http://loki:3100/loki/api/v1/push
+        tenant_id: aiops
+        labels:
+          attributes:
+            container: container
+            namespace: namespace
+            pod: pod
+            node: node
+
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+      pprof:
+        endpoint: 0.0.0.0:1777
+      zpages:
+        endpoint: 0.0.0.0:55679
+
+    service:
+      extensions: [health_check, pprof, zpages]
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [otlp]
+        
+        metrics:
+          receivers: [otlp, k8s_cluster, hostmetrics]
+          processors: [memory_limiter, filter, resource, batch]
+          exporters: [prometheus]
+        
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [loki] 

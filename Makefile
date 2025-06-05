@@ -130,4 +130,46 @@ help: ## Показать это сообщение
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
+.PHONY: help install test build clean deploy
+
+help: ## Показать помощь по командам
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+
+install: ## Установить зависимости
+	$(GO) mod download
+	helm dependency update ./helm/aiops-umbrella
+
+test: ## Запустить тесты
+	$(GO) test -v ./...
+	helm test aiops-umbrella -n aiops
+
+build: ## Собрать проект
+	$(GO) build -o bin/aiops ./src/cmd/aiops
+
+clean: ## Очистить временные файлы
+	rm -rf bin/
+	rm -rf dist/
+	$(GO) clean -cache
+
+deploy: ## Развернуть в Kubernetes
+	helm upgrade --install aiops-umbrella ./helm/aiops-umbrella -n aiops --create-namespace
+
+docs: ## Сгенерировать документацию
+	godoc -http=:6060
+
+dev: ## Запустить локальное окружение
+	$(GO) mod download
+	$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	$(GO) install golang.org/x/tools/cmd/goimports@latest
+	docker-compose up -d
+
+stop: ## Остановить локальное окружение
+	docker-compose down
+
+k3s-up: ## Поднять K3s кластер
+	k3d cluster create aiops-cluster --servers 1 --agents 2
+
+k3s-down: ## Удалить K3s кластер
+	k3d cluster delete aiops-cluster
+
 .DEFAULT_GOAL := help 

@@ -1,32 +1,16 @@
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-bin/
-
-# Test binary, built with `go test -c`
-*.test
-
-# Output of the go coverage tool, specifically when used with LiteIDE
-*.out
-
-# Dependency directories (remove the comment below to include it)
-vendor/
-
-# Go workspace file
-go.work
-
-# IDE specific files
+# IDE
 .idea/
 .vscode/
 *.swp
 *.swo
 
-# OS specific files
+# OS
 .DS_Store
 Thumbs.db
+
+# Kubernetes
+kubeconfig
+*.kubeconfig
 
 # Terraform
 .terraform/
@@ -34,48 +18,82 @@ Thumbs.db
 *.tfstate.*
 *.tfvars
 
-# Ansible
-*.retry
-
-# Kubernetes
-kubeconfig
-*.kubeconfig
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
 # Logs
 *.log
+logs/
+log/
 
 # Environment variables
 .env
 .env.*
 
-# Build output
-dist/
-build/
-
-# Docker volumes
-docker/volumes/
-
-# Node modules
-node_modules/
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-.Python
-env/
-venv/
-.env/
-.venv/
-
-# Certificates
-*.pem
-*.key
-*.crt
-*.cer
-*.der
-*.priv
-
 # Temporary files
 *.tmp
-*~ 
+*.temp
+*.bak
+*~
+
+# Dependencies
+node_modules/
+vendor/
+
+# Binaries and build artifacts
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go specific
+*.test
+*.out
+/vendor/
+
+# IDE and editor files
+*.swp
+*.swo
+
+# Helm
+charts/*.tgz
+.helm/
+
+# Environment and secrets
+*.key
+*.pem
+*.crt
+*.csr
+secrets/
+
+# Logs and databases
+*.sqlite
+*.db
+
+# Project specific
+/prometheus/data/
+/grafana/data/
+/loki/data/
+/jaeger/data/
+/otel-collector/data/ 

@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ml-metrics-rules
+  namespace: monitoring
+data:
+  ml-metrics.yaml: |
+    groups:
+      - name: ml_metrics
+        rules:
+          # Метрики точности моделей
+          - record: model_accuracy:avg_5m
+            expr: |
+              avg_over_time(aiops_model_accuracy{model=~".+"}[5m])
+          
+          - record: model_precision:avg_5m
+            expr: |
+              avg_over_time(aiops_model_precision{model=~".+"}[5m])
+          
+          - record: model_recall:avg_5m
+            expr: |
+              avg_over_time(aiops_model_recall{model=~".+"}[5m])
+          
+          - record: model_f1:avg_5m
+            expr: |
+              avg_over_time(aiops_model_f1_score{model=~".+"}[5m])
+
+          # Метрики производительности
+          - record: model_prediction_latency:avg_5m
+            expr: |
+              avg_over_time(aiops_model_prediction_duration_seconds{model=~".+"}[5m])
+          
+          - record: model_prediction_throughput:rate_5m
+            expr: |
+              rate(aiops_model_predictions_total{model=~".+"}[5m])
+
+          # Метрики ресурсов
+          - record: model_memory_usage:avg_5m
+            expr: |
+              avg_over_time(container_memory_usage_bytes{container=~"aiops-.*"}[5m])
+          
+          - record: model_cpu_usage:avg_5m
+            expr: |
+              avg_over_time(container_cpu_usage_seconds_total{container=~"aiops-.*"}[5m])
+
+          # Метрики дрейфа данных
+          - record: feature_drift:stddev_5m
+            expr: |
+              stddev_over_time(aiops_feature_drift_score{feature=~".+"}[5m])
+          
+          - record: prediction_drift:stddev_5m
+            expr: |
+              stddev_over_time(aiops_prediction_drift_score{model=~".+"}[5m])
+
+          # Метрики качества данных
+          - record: data_quality:missing_values_rate
+            expr: |
+              rate(aiops_missing_values_total[5m]) / 
+              rate(aiops_total_values[5m])
+          
+          - record: data_quality:outliers_rate
+            expr: |
+              rate(aiops_outliers_detected_total[5m]) / 
+              rate(aiops_total_values[5m])
+
+      - name: ml_alerts
+        rules:
+          - alert: ModelAccuracyDrop
+            expr: |
+              model_accuracy:avg_5m < 0.8
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Model accuracy dropped below threshold"
+              description: "Model {{ $labels.model }} accuracy is {{ $value }}"
+
+          - alert: HighPredictionLatency
+            expr: |
+              model_prediction_latency:avg_5m > 0.1
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High prediction latency detected"
+              description: "Model {{ $labels.model }} prediction latency is {{ $value }}s"
+
+          - alert: DataDriftDetected
+            expr: |
+              feature_drift:stddev_5m > 0.3
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Data drift detected"
+              description: "Feature {{ $labels.feature }} showing significant drift"
+
+          - alert: HighResourceUsage
+            expr: |
+              model_memory_usage:avg_5m / 1024 / 1024 > 1000
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High memory usage detected"
+              description: "Model {{ $labels.model }} using more than 1GB memory" 

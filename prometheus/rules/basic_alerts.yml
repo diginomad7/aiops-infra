@@ -1,0 +1,29 @@
+groups:
+  - name: basic_alerts
+    rules:
+      - alert: HighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total{container!=""}[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High CPU usage on {{ $labels.container }}
+          description: Container {{ $labels.container }} has high CPU usage (> 80%)
+
+      - alert: HighMemoryUsage
+        expr: container_memory_usage_bytes{container!=""} / container_spec_memory_limit_bytes{container!=""} * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High memory usage on {{ $labels.container }}
+          description: Container {{ $labels.container }} has high memory usage (> 85%)
+
+      - alert: PodRestartingTooOften
+        expr: changes(kube_pod_container_status_restarts_total{container!=""}[1h]) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Pod restarting frequently
+          description: Pod {{ $labels.pod }} is restarting too often (> 2 times in 1h) 

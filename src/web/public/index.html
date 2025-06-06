@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#2196f3" />
+    <meta
+      name="description"
+      content="AIOps Dashboard - Система мониторинга и управления аномалиями в инфраструктуре"
+    />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
+    />
+    <title>AIOps Dashboard</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      
+      #root {
+        min-height: 100vh;
+      }
+      
+      .splash-screen {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        background-color: #f5f5f5;
+      }
+      
+      .splash-screen__logo {
+        width: 120px;
+        height: 120px;
+        margin-bottom: 32px;
+        animation: pulse 1.5s infinite;
+      }
+      
+      .splash-screen__text {
+        font-size: 24px;
+        color: #333;
+        margin-bottom: 16px;
+      }
+      
+      .splash-screen__spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid rgba(33, 150, 243, 0.3);
+        border-radius: 50%;
+        border-top-color: #2196f3;
+        animation: spin 1s linear infinite;
+      }
+      
+      @keyframes pulse {
+        0% {
+          transform: scale(0.95);
+          opacity: 0.7;
+        }
+        50% {
+          transform: scale(1);
+          opacity: 1;
+        }
+        100% {
+          transform: scale(0.95);
+          opacity: 0.7;
+        }
+      }
+      
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      
+      @media (prefers-color-scheme: dark) {
+        .splash-screen {
+          background-color: #121212;
+        }
+        
+        .splash-screen__text {
+          color: #f5f5f5;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <noscript>Для работы этого приложения необходимо включить JavaScript.</noscript>
+    <div id="root">
+      <div class="splash-screen">
+        <div class="splash-screen__logo">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#2196f3">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
+          </svg>
+        </div>
+        <div class="splash-screen__text">AIOps Dashboard</div>
+        <div class="splash-screen__spinner"></div>
+      </div>
+    </div>
+  </body>
+</html> 

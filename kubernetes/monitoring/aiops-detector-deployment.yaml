@@ -1,0 +1,381 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aiops-detector-config
+  namespace: monitoring
+data:
+  config.yaml: |
+    # Настройки API
+    api:
+      port: 8080
+      host: "0.0.0.0"
+      enable_cors: true
+      timeout: 30s
+    
+    # Настройки оркестратора
+    orchestrator:
+      max_concurrent_actions: 10
+      action_timeout: 5m
+      history_limit: 1000
+    
+    # Настройки детектора аномалий
+    detector:
+      statsd_address: "localhost:8125"
+      log_anomalies: true
+      default_threshold: 2.0
+    
+    # Настройки Prometheus
+    prometheus:
+      enabled: true
+      url: "http://prometheus-server.monitoring.svc.cluster.local:9090"
+      collect_interval: 1m
+      alert_ttl: 30m
+    
+    # Настройки Kubernetes
+    kubernetes:
+      in_cluster: true
+      kubeconfig_path: ""
+      namespace: "default"
+    
+    # Настройки оповещений
+    notifications:
+      slack:
+        webhook_url: "${SLACK_WEBHOOK}"
+        default_channel: "#alerts"
+        username: "AIOps-Bot"
+      email:
+        smtp_server: "${SMTP_SERVER}"
+        from: "aiops@example.com"
+        to: ["admin@example.com"]
+        auth:
+          username: "${SMTP_USERNAME}"
+          password: "${SMTP_PASSWORD}"
+    
+    # Настройки логирования
+    logging:
+      level: "info"
+      format: "json"
+      output: "stdout"
+      file: "/var/log/aiops-detector.log"
+    
+    # Настройки скриптов восстановления
+    scripts:
+      dir: "/app/scripts"
+      timeout: 60s
+      allowed_prefixes:
+        - "restart_"
+        - "fix_"
+        - "scale_"
+
+  prometheus_queries.yaml: |
+    # Запросы Prometheus для обнаружения аномалий
+    queries:
+      # Мониторинг нагрузки на CPU
+      cpu_usage:
+        query: "sum(rate(node_cpu_seconds_total{mode!=\"idle\"}[5m])) by (instance) / count(node_cpu_seconds_total{mode=\"idle\"}) by (instance) * 100"
+        description: "Использование CPU в процентах для узлов кластера"
+        threshold: 90.0
+        detector_type: "statistical"
+        window_size: 60
+        collect_interval: "1m"
+      
+      # Мониторинг использования памяти
+      memory_usage:
+        query: "100 - ((node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100)"
+        description: "Использование оперативной памяти в процентах"
+        threshold: 85.0
+        detector_type: "window"
+        window_size: 30
+        collect_interval: "1m"
+      
+      # Мониторинг нагрузки на диск
+      disk_usage:
+        query: "(node_filesystem_size_bytes - node_filesystem_avail_bytes) / node_filesystem_size_bytes * 100"
+        description: "Использование дискового пространства в процентах"
+        threshold: 90.0
+        detector_type: "statistical"
+        window_size: 24
+        collect_interval: "5m"
+      
+      # Мониторинг сетевого трафика
+      network_traffic:
+        query: "sum(rate(node_network_transmit_bytes_total[5m]) + rate(node_network_receive_bytes_total[5m])) by (instance)"
+        description: "Общий сетевой трафик (отправка + получение) в байтах в секунду"
+        threshold: 3.0
+        detector_type: "isolation_forest"
+        num_trees: 100
+        sample_size: 256
+        collect_interval: "1m"
+      
+      # Мониторинг задержки ответа API
+      api_latency:
+        query: "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"api-server\"}[5m])) by (le))"
+        description: "95й процентиль времени ответа API-сервера в секундах"
+        threshold: 0.5
+        detector_type: "window"
+        window_size: 60
+        collect_interval: "30s"
+      
+      # Мониторинг ошибок HTTP
+      http_errors:
+        query: "sum(rate(http_requests_total{status=~\"5..\"}[5m])) / sum(rate(http_requests_total[5m])) * 100"
+        description: "Процент HTTP 5xx ошибок от общего количества запросов"
+        threshold: 5.0
+        detector_type: "statistical"
+        window_size: 60
+        collect_interval: "1m"
+      
+      # Мониторинг доступности сервисов
+      service_availability:
+        query: "sum(up{job=~\".*\"}) by (job) / count(up{job=~\".*\"}) by (job) * 100"
+        description: "Доступность сервисов в процентах"
+        threshold: 99.0
+        detector_type: "window"
+        window_size: 30
+        collect_interval: "30s"
+      
+      # Мониторинг времени выполнения запросов к базе данных
+      db_query_time:
+        query: "histogram_quantile(0.95, sum(rate(database_query_duration_seconds_bucket[5m])) by (le))"
+        description: "95й процентиль времени выполнения запросов к базе данных в секундах"
+        threshold: 1.0
+        detector_type: "statistical"
+        window_size: 60
+        collect_interval: "1m"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aiops-anomaly-detector
+  namespace: monitoring
+  labels:
+    app: aiops-anomaly-detector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aiops-anomaly-detector
+  template:
+    metadata:
+      labels:
+        app: aiops-anomaly-detector
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: aiops-sa
+      containers:
+      - name: anomaly-detector
+        image: your-repo/aiops-anomaly-detector:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: api
+        - containerPort: 9102
+          name: metrics
+        resources:
+          limits:
+            cpu: "1"
+            memory: "1Gi"
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+        env:
+        - name: CONFIG_PATH
+          value: "/etc/aiops/config.yaml"
+        - name: LOG_LEVEL
+          value: "info"
+        - name: PROMETHEUS_URL
+          value: "http://prometheus-server.monitoring.svc.cluster.local:9090"
+        - name: LOKI_URL
+          value: "http://loki.monitoring.svc.cluster.local:3100"
+        - name: KUBERNETES_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/aiops
+        - name: scripts-volume
+          mountPath: /etc/aiops/scripts
+        - name: timezonesync
+          mountPath: /etc/localtime
+          readOnly: true
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /readiness
+            port: 8080
+          initialDelaySeconds: 15
+          timeoutSeconds: 5
+      volumes:
+      - name: config-volume
+        configMap:
+          name: aiops-detector-config
+      - name: scripts-volume
+        configMap:
+          name: aiops-remediation-scripts
+          defaultMode: 0755
+      - name: timezonesync
+        hostPath:
+          path: /etc/localtime
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aiops-anomaly-detector
+  namespace: monitoring
+  labels:
+    app: aiops-anomaly-detector
+spec:
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: api
+  - port: 9102
+    targetPort: 9102
+    name: metrics
+  selector:
+    app: aiops-anomaly-detector
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aiops-detector-config
+  namespace: monitoring
+data:
+  config.yaml: |
+    api:
+      port: 8080
+      host: "0.0.0.0"
+      enable_cors: true
+      timeout: 30s
+    
+    orchestrator:
+      max_concurrent_actions: 10
+      action_timeout: 5m
+      history_limit: 1000
+    
+    prometheus:
+      enabled: true
+      url: "http://prometheus-server.monitoring.svc.cluster.local:9090"
+      collect_interval: 1m
+      alert_ttl: 30m
+    
+    loki:
+      url: "http://loki.monitoring.svc.cluster.local:3100"
+    
+    kubernetes:
+      inCluster: true
+      namespace: "default"
+    
+    notifications:
+      slack:
+        webhook_url: "${SLACK_WEBHOOK}"
+        default_channel: "#alerts"
+        username: "AIOps-Bot"
+      email:
+        smtp_server: "${SMTP_SERVER}"
+        from: "aiops@example.com"
+        to: ["admin@example.com"]
+        auth:
+          username: "${SMTP_USERNAME}"
+          password: "${SMTP_PASSWORD}"
+    
+    logging:
+      level: "info"
+      format: "json"
+      output: "stdout"
+    
+    detectors:
+      prometheus:
+        cpu:
+          threshold: 3.0
+          windowSize: 10
+        memory:
+          threshold: 3.0
+          minSamples: 30
+        disk:
+          threshold: 2.5
+          windowSize: 5
+        latency:
+          threshold: 0.8
+          algorithm: "isolation_forest"
+          numTrees: 100
+          sampleSize: 256
+      
+      logs:
+        errorThreshold: 10
+        warningThreshold: 20
+        timeWindow: 5
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aiops-remediation-scripts
+  namespace: monitoring
+data:
+  cleanup.sh: |
+    #!/bin/bash
+    # Script to clean up old log files
+    DIR=$1
+    DAYS=$2
+    echo "Cleaning logs older than $DAYS days in $DIR"
+    find $DIR -type f -name "*.log" -mtime +$DAYS -delete
+    exit $?
+  
+  restart_service.sh: |
+    #!/bin/bash
+    # Script to restart a kubernetes deployment
+    NAMESPACE=$1
+    DEPLOYMENT=$2
+    echo "Restarting deployment $DEPLOYMENT in namespace $NAMESPACE"
+    kubectl rollout restart deployment/$DEPLOYMENT -n $NAMESPACE
+    exit $?
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: aiops-detector-role
+rules:
+- apiGroups: [""]
+  resources: ["pods", "pods/log", "services", "nodes"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "statefulsets", "daemonsets"]
+  verbs: ["get", "list", "watch", "patch"]
+- apiGroups: ["batch"]
+  resources: ["jobs", "cronjobs"]
+  verbs: ["get", "list", "watch", "create"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: aiops-detector-binding
+subjects:
+- kind: ServiceAccount
+  name: aiops-sa
+  namespace: monitoring
+roleRef:
+  kind: ClusterRole
+  name: aiops-detector-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aiops-sa
+  namespace: monitoring 

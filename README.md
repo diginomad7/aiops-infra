@@ -1,303 +1,172 @@
-# AIOps Monitoring Stack
+# AIOps Infrastructure
 
-Комплексный мониторинг-стек для AIOps решений, включающий в себя сбор метрик, логов, трейсов и специализированный ML-мониторинг.
-
-## Содержание
-
-- [Обзор](#обзор)
-- [Архитектура](#архитектура)
-- [Предварительные требования](#предварительные-требования)
-- [Установка](#установка)
-- [Конфигурация](#конфигурация)
-- [Использование](#использование)
-- [ML-мониторинг](#ml-мониторинг)
-- [Устранение неполадок](#устранение-неполадок)
-- [Разработка](#разработка)
+Инфраструктура для автоматического обнаружения и устранения аномалий в микросервисных приложениях.
 
 ## Обзор
 
-Стек включает в себя следующие компоненты:
+AIOps Infrastructure предоставляет комплексное решение для мониторинга, обнаружения аномалий и автоматического восстановления микросервисных приложений. Система использует методы машинного обучения для выявления отклонений в метриках и логах, а также автоматически применяет заранее определенные действия для устранения проблем.
 
-- **Prometheus**: сбор и хранение метрик
-- **Grafana**: визуализация метрик, логов и трейсов
-- **Loki**: агрегация и хранение логов
-- **Promtail**: сбор логов с узлов
-- **Tempo**: распределенная трассировка
-- **OpenTelemetry Collector**: сбор телеметрии
-- **AlertManager**: управление оповещениями
+### Ключевые компоненты
+
+1. **Сбор метрик и логов**
+   - Интеграция с Prometheus для сбора и анализа метрик
+   - Интеграция с Loki для анализа логов приложений
+   - Гибкая система запросов и фильтрации данных
+
+2. **Обнаружение аномалий**
+   - Детекторы на основе статистических методов
+   - Детекторы на основе скользящего окна
+   - Детекторы на основе алгоритма Isolation Forest
+   - Анализ логов на основе шаблонов и частотного анализа
+
+3. **Автоматическое восстановление**
+   - Выполнение предопределенных действий по восстановлению
+   - Интеграция с Kubernetes для операций масштабирования и перезапуска
+   - Выполнение пользовательских скриптов
+   - Отправка уведомлений в различные каналы
 
 ## Архитектура
 
-```mermaid
-graph TD
-    A[Applications] -->|Metrics| B[OpenTelemetry Collector]
-    A -->|Logs| C[Promtail]
-    A -->|Traces| B
-    B -->|Metrics| D[Prometheus]
-    B -->|Traces| E[Tempo]
-    C -->|Logs| F[Loki]
-    D -->|Metrics| G[Grafana]
-    E -->|Traces| G
-    F -->|Logs| G
-    D -->|Alerts| H[AlertManager]
-    H -->|Notifications| I[Slack/Email]
-```
+![Архитектура](docs/images/architecture.png)
 
-## Предварительные требования
+### Компоненты системы
 
-1. Kubernetes кластер (версия 1.19+)
-2. kubectl (настроенный для работы с кластером)
-3. Минимальные ресурсы:
-   - CPU: 4 cores
-   - RAM: 8GB
-   - Storage: 50GB
+- **Anomaly Detector** - ядро системы, анализирующее метрики и логи
+- **Remediator** - компонент, выполняющий действия по восстановлению
+- **API Server** - REST API для управления и мониторинга системы
+- **Prometheus Collector** - сбор и анализ метрик из Prometheus
+- **Loki Collector** - сбор и анализ логов из Loki
+- **Action Handlers** - обработчики для различных типов действий
 
 ## Установка
 
-### 1. Клонирование репозитория
+### Предварительные требования
+
+- Kubernetes кластер (v1.19+)
+- Prometheus (v2.20+)
+- Loki (v2.0+)
+- Kubectl (v1.19+)
+
+### Установка с помощью Helm
 
 ```bash
-git clone https://github.com/your-org/aiops-infra.git
+# Добавление Helm репозитория
+helm repo add aiops https://your-repo/charts
+helm repo update
+
+# Установка с значениями по умолчанию
+helm install aiops aiops/aiops-infra
+
+# Установка с пользовательскими значениями
+helm install aiops aiops/aiops-infra -f values.yaml
+```
+
+### Установка с помощью kubectl
+
+```bash
+# Клонирование репозитория
+git clone https://github.com/diginomad7/aiops-infra.git
 cd aiops-infra
-```
 
-### 2. Настройка окружения
-
-```bash
-# Создание namespace
-kubectl create namespace monitoring
-
-# Настройка RBAC (если требуется)
-kubectl apply -f kubernetes/monitoring/rbac.yaml
-```
-
-### 3. Установка компонентов
-
-```bash
-# Переход в директорию с манифестами
-cd kubernetes/monitoring
-
-# Запуск скрипта установки
-chmod +x deploy.sh
-./deploy.sh
-```
-
-### 4. Проверка установки
-
-```bash
-# Проверка статуса подов
-kubectl -n monitoring get pods
-
-# Проверка сервисов
-kubectl -n monitoring get svc
-
-# Проверка конфигмапов
-kubectl -n monitoring get configmaps
+# Применение манифестов
+kubectl apply -f kubernetes/
 ```
 
 ## Конфигурация
 
-### Prometheus
+### Общая конфигурация
 
-Основной файл конфигурации: `kubernetes/monitoring/prometheus-deployment.yaml`
+Основная конфигурация системы находится в файле `configs/config.yaml`. Этот файл содержит настройки для различных компонентов системы.
 
-```yaml
-# Пример настройки scrape_configs
-scrape_configs:
-  - job_name: 'kubernetes-pods'
-    kubernetes_sd_configs:
-      - role: pod
-```
+### Настройка обнаружения аномалий метрик
 
-### Grafana
+Для настройки обнаружения аномалий в метриках используется файл `configs/prometheus_queries.yaml`. В этом файле определяются запросы к Prometheus, а также настройки детекторов для анализа полученных метрик.
 
-URL: `http://localhost:3000`
-Credentials: admin/aiops-admin-password
+### Настройка обнаружения аномалий в логах
 
-Доступные дашборды:
-- Logs Overview
-- Traces Overview
-- ML Models Monitoring
+Для настройки обнаружения аномалий в логах используется файл `configs/loki_patterns.yaml`. В этом файле определяются шаблоны для поиска в логах, а также настройки анализа частоты сообщений.
 
-### Loki
+### Настройка действий по восстановлению
 
-Конфигурация логов: `kubernetes/monitoring/loki-deployment.yaml`
+Действия по восстановлению настраиваются в файле `configs/config.yaml` в разделе `actions`. Каждое действие привязывается к определенному типу аномалии и содержит параметры для выполнения.
 
-```yaml
-# Пример настройки retention
-limits_config:
-  retention_period: 7d
-```
+## Детекторы аномалий
 
-### AlertManager
+### Детекторы для метрик Prometheus
 
-Настройка оповещений: `kubernetes/monitoring/alertmanager-deployment.yaml`
+Система поддерживает следующие типы детекторов для метрик:
 
-```yaml
-# Пример настройки Slack
-receivers:
-- name: 'slack'
-  slack_configs:
-  - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
-```
+1. **Statistical Detector** - использует статистические методы (среднее, стандартное отклонение)
+2. **Window Detector** - использует скользящее окно для анализа данных
+3. **Isolation Forest Detector** - использует алгоритм Isolation Forest для обнаружения выбросов
 
-## Использование
+### Детекторы для логов Loki
 
-### Port Forwarding
+Система поддерживает следующие методы анализа логов:
 
-```bash
-# Grafana
-kubectl -n monitoring port-forward deployment/grafana 3000:3000
+1. **Pattern Matching** - поиск заданных шаблонов в логах
+2. **Frequency Analysis** - анализ частоты появления определенных типов сообщений
+3. **Correlation Analysis** - анализ связей между разными типами сообщений
 
-# Prometheus
-kubectl -n monitoring port-forward deployment/prometheus 9090:9090
+## API
 
-# AlertManager
-kubectl -n monitoring port-forward deployment/alertmanager 9093:9093
+Система предоставляет REST API для управления и мониторинга:
 
-# Loki
-kubectl -n monitoring port-forward statefulset/loki 3100:3100
+- `GET /api/v1/anomalies` - получение списка обнаруженных аномалий
+- `GET /api/v1/detectors` - получение списка активных детекторов
+- `POST /api/v1/detectors` - создание нового детектора
+- `GET /api/v1/actions` - получение списка выполненных действий
+- `POST /api/v1/actions` - ручное выполнение действия
+- `GET /health` - проверка состояния системы
+- `GET /metrics` - метрики Prometheus
 
-# Tempo
-kubectl -n monitoring port-forward statefulset/tempo 3200:3200
+## Примеры использования
 
-# OpenTelemetry Collector
-kubectl -n monitoring port-forward deployment/otel-collector 8889:8889
-```
-
-### Доступ к UI
-
-- Grafana: http://localhost:3000
-- Prometheus: http://localhost:9090
-- AlertManager: http://localhost:9093
-- Loki: http://localhost:3100
-- Tempo: http://localhost:3200
-- OpenTelemetry Metrics: http://localhost:8889/metrics
-
-## ML-мониторинг
-
-### Доступные метрики
-
-1. Метрики качества моделей:
-   - Accuracy
-   - Precision
-   - Recall
-   - F1-score
-
-2. Метрики производительности:
-   - Latency
-   - Throughput
-   - Resource usage
-
-3. Метрики данных:
-   - Data drift
-   - Feature drift
-   - Data quality
-
-### Алерты
+### Мониторинг нагрузки на CPU
 
 ```yaml
-# Пример настройки ML-алертов
-- alert: ModelAccuracyDrop
-  expr: model_accuracy:avg_5m < 0.8
-  for: 5m
-  labels:
-    severity: warning
+# configs/prometheus_queries.yaml
+queries:
+  - name: cpu_usage
+    query: 'avg by (instance) (irate(node_cpu_seconds_total{mode!="idle"}[5m]))'
+    step: 1m
 ```
 
-### Графики
+### Поиск ошибок в логах
 
-Дашборд ML Models Monitoring включает:
-- Точность моделей
-- Латентность предсказаний
-- Дрейф признаков
-- Пропускная способность
-- Проблемы с качеством данных
-- Использование ресурсов
-
-## Устранение неполадок
-
-### Проверка логов
-
-```bash
-# Логи Prometheus
-kubectl -n monitoring logs -f deployment/prometheus
-
-# Логи Grafana
-kubectl -n monitoring logs -f deployment/grafana
-
-# Логи Loki
-kubectl -n monitoring logs -f statefulset/loki-0
-
-# Логи OpenTelemetry Collector
-kubectl -n monitoring logs -f deployment/otel-collector
-```
-
-### Частые проблемы
-
-1. Prometheus не собирает метрики:
-```bash
-kubectl -n monitoring exec -it deployment/prometheus -- wget -qO- http://localhost:9090/-/ready
-```
-
-2. Loki не получает логи:
-```bash
-kubectl -n monitoring exec -it statefulset/loki-0 -- wget -qO- http://localhost:3100/ready
-```
-
-3. Tempo не получает трейсы:
-```bash
-kubectl -n monitoring exec -it statefulset/tempo-0 -- wget -qO- http://localhost:3200/ready
-```
-
-## Разработка
-
-### Добавление новых метрик
-
-1. Создайте recording rule в `kubernetes/monitoring/ml-metrics-rules.yaml`:
 ```yaml
-- record: new_metric:avg_5m
-  expr: avg_over_time(your_metric[5m])
+# configs/loki_patterns.yaml
+patterns:
+  - name: api_errors
+    pattern: "ERROR.*API request failed"
+    severity: high
+    labels:
+      - "app=api-service"
 ```
 
-2. Добавьте панель в Grafana дашборд:
-```bash
-kubectl -n monitoring apply -f kubernetes/monitoring/grafana-dashboards-configmap.yaml
-```
+### Автоматическое масштабирование при высокой нагрузке
 
-### Добавление алертов
-
-1. Создайте правило в `kubernetes/monitoring/ml-metrics-rules.yaml`:
 ```yaml
-- alert: NewAlert
-  expr: metric > threshold
-  for: 5m
-  labels:
-    severity: warning
+# configs/config.yaml
+actions:
+  cpu_usage:
+    type: kubernetes
+    params:
+      action: scale
+      namespace: default
+      deployment: api-deployment
+      replicas: 5
 ```
 
-2. Примените изменения:
-```bash
-kubectl apply -f kubernetes/monitoring/ml-metrics-rules.yaml
-```
+## Вклад в проект
 
-### Обновление компонентов
-
-```bash
-# Обновление всего стека
-./deploy.sh
-
-# Обновление отдельных компонентов
-kubectl -n monitoring apply -f kubernetes/monitoring/component-name.yaml
-```
+Вклады приветствуются! Пожалуйста, смотрите [CONTRIBUTING.md](CONTRIBUTING.md) для подробностей.
 
 ## Лицензия
 
-MIT
+[MIT](LICENSE)
 
-## Поддержка
+## Контакты
 
-При возникновении проблем:
-1. Проверьте [секцию с устранением неполадок](#устранение-неполадок)
-2. Создайте issue в репозитории
-3. Обратитесь к команде поддержки 
+- Email: miltonwelch4@gmail.com
+- GitHub: [diginomad7](https://github.com/diginomad7) 

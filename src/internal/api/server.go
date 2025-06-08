@@ -26,6 +26,9 @@ type Server struct {
 
 	// New: WebSocket Gateway for real-time updates
 	wsGateway *WebSocketGateway
+
+	// New: Data Source API
+	dataSourceAPI *DataSourceAPI
 }
 
 // DetectorManager manages detector lifecycle and operations
@@ -109,8 +112,39 @@ func (s *Server) RegisterLogsDetector(detector *detector.LogsAnomalyDetector) {
 	s.setupLokiRoutes()
 }
 
+// RegisterDataSourceAPI registers the data source API handler
+func (s *Server) RegisterDataSourceAPI(api *DataSourceAPI) {
+	s.dataSourceAPI = api
+}
+
 // setupRoutes настраивает маршруты API
 func (s *Server) setupRoutes() {
+	// Initialize logging
+	InitLogger("aiops-api", LogLevelInfo)
+
+	// Performance middleware
+	perfConfig := DefaultPerformanceConfig()
+	perfMiddleware := PerformanceMiddleware(perfConfig)
+	for _, middleware := range perfMiddleware {
+		s.engine.Use(middleware)
+	}
+
+	// Additional middleware
+	s.engine.Use(LoggingMiddleware())
+	s.engine.Use(RecoveryMiddleware())
+
+	// Health and monitoring routes
+	s.engine.GET("/health", HealthHandler)
+	s.engine.GET("/health/:component", ComponentHealthHandler)
+	s.engine.GET("/ready", ReadinessHandler)
+	s.engine.GET("/alive", LivenessHandler)
+	s.engine.GET("/metrics", MetricsHandler)
+
+	// Documentation routes
+	s.engine.GET("/api/docs", DocumentationHandler)
+	s.engine.GET("/api/docs/ui", SwaggerUIHandler)
+	s.engine.GET("/api/deployment", DeploymentInfoHandler)
+
 	// Маршруты для оркестратора
 	s.engine.POST("/api/orchestrator/action", s.handleExecuteAction)
 	s.engine.POST("/api/orchestrator/actionplan", s.handleExecuteActionPlan)
@@ -120,18 +154,14 @@ func (s *Server) setupRoutes() {
 	// NEW: Detector Management Routes
 	s.setupDetectorRoutes()
 
+	// NEW: Data Source Routes
+	if s.dataSourceAPI != nil {
+		dataSourceGroup := s.engine.Group("/api/datasources")
+		s.dataSourceAPI.SetupRoutes(dataSourceGroup)
+	}
+
 	// NEW: WebSocket Route
 	s.engine.GET("/api/ws", s.wsGateway.HandleWebSocket)
-
-	// Маршрут для проверки работоспособности
-	s.engine.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	})
-
-	// Маршрут для проверки готовности
-	s.engine.GET("/readiness", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ready"})
-	})
 }
 
 // setupPrometheusRoutes настраивает маршруты API для Prometheus
